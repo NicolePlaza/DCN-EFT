@@ -1,0 +1,24 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  app:
+    build: .
+    container_name: mscursos
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_DATASOURCE_PASSWORD: TU_PASSWORD_ORACLE
+      AWS_ACCESS_KEY_ID: TU_ACCESS_KEY
+      AWS_SECRET_ACCESS_KEY: TU_SECRET_KEY
+      AWS_SESSION_TOKEN: TU_SESSION_TOKEN
