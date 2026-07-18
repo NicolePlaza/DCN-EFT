@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Cursos en Línea</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #1f3864 0%, #2e5090 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+        /* Encabezado */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            color: white; padding: 20px 0;
+        }
+        header h1 { font-size: 1.5rem; }
+        .btn {
+            background: #ffffff; color: #1f3864; border: none;
+            padding: 10px 20px; border-radius: 6px; cursor: pointer;
+            font-weight: 600; font-size: 0.95rem; transition: 0.2s;
+        }
+        .btn:hover { background: #e8eef7; }
+        .btn-primary { background: #4caf50; color: white; }
+        .btn-primary:hover { background: #43a047; }
+        .btn-logout { background: transparent; color: white; border: 1px solid white; }
+        .btn-logout:hover { background: rgba(255,255,255,0.15); }
+
+        /* Tarjetas */
+        .card {
+            background: white; border-radius: 10px; padding: 30px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15); margin-bottom: 20px;
+        }
+
+        /* Login */
+        #loginView { max-width: 420px; margin: 60px auto; }
+        #loginView h2 { color: #1f3864; margin-bottom: 8px; text-align: center; }
+        #loginView p { color: #666; text-align: center; margin-bottom: 24px; font-size: 0.9rem; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; }
+        input, select {
+            width: 100%; padding: 11px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 0.95rem;
+        }
+        input:focus, select:focus { outline: none; border-color: #2e5090; }
+        .btn-block { width: 100%; padding: 12px; margin-top: 8px; }
+
+        /* Mensajes */
+        .msg { padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; display: none; }
+        .msg-error { background: #fdecea; color: #b71c1c; border: 1px solid #f5c6cb; }
+        .msg-success { background: #e8f5e9; color: #1b5e20; border: 1px solid #c3e6cb; }
+        .msg.show { display: block; }
+
+        /* Lista de cursos */
+        .curso-item {
+            border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;
+            margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .curso-info h3 { color: #1f3864; margin-bottom: 6px; }
+        .curso-info p { color: #666; font-size: 0.88rem; margin-bottom: 4px; }
+        .curso-meta { font-size: 0.82rem; color: #888; }
+        .badge {
+            display: inline-block; background: #e8eef7; color: #2e5090;
+            padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; margin-right: 6px;
+        }
+        .hidden { display: none; }
+        .loader { text-align: center; padding: 30px; color: #888; }
+
+        /* Modal de inscripción */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 10px; padding: 30px; max-width: 460px; width: 90%; }
+        .modal h2 { color: #1f3864; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ============ VISTA LOGIN ============ -->
+    <div id="loginView">
+        <div class="card">
+            <h2>Plataforma de Cursos</h2>
+            <p>Inicia sesión con tu cuenta institucional (Azure AD B2C)</p>
+            <div id="loginMsg" class="msg msg-error"></div>
+            <div class="form-group">
+                <label>Rol de acceso</label>
+                <select id="rolSelect">
+                    <option value="Instructor">Instructor</option>
+                    <option value="Estudiante">Estudiante</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="login()">Iniciar sesión</button>
+            <p style="margin-top:16px; font-size:0.8rem;">
+                La autenticación se realiza contra Azure AD B2C, que emite un token
+                JWT validado por el backend mediante Spring Security.
+            </p>
+        </div>
+    </div>
+
+    <!-- ============ VISTA PRINCIPAL ============ -->
+    <div id="mainView" class="hidden">
+        <header>
+            <h1> Plataforma de Cursos en Línea</h1>
+            <div>
+                <span id="userRole" style="margin-right:14px; font-size:0.9rem;"></span>
+                <button class="btn btn-logout" onclick="logout()">Cerrar sesión</button>
+            </div>
+        </header>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="color:#1f3864;">Cursos disponibles</h2>
+                <button class="btn btn-primary" onclick="cargarCursos()">Actualizar</button>
+            </div>
+            <div id="cursosMsg" class="msg"></div>
+            <div id="cursosList">
+                <div class="loader">Cargando cursos...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL INSCRIPCIÓN ============ -->
+    <div id="modalInscripcion" class="modal-overlay">
+        <div class="modal">
+            <h2>Inscribirse al curso</h2>
+            <div id="modalMsg" class="msg"></div>
+            <input type="hidden" id="modalIdCurso">
+            <input type="hidden" id="modalNombreCurso">
+            <div class="form-group">
+                <label>RUT del estudiante</label>
+                <input type="text" id="inpRut" placeholder="12.345.678-9">
+            </div>
+            <div class="form-group">
+                <label>Nombre del estudiante</label>
+                <input type="text" id="inpNombre" placeholder="Nombre completo">
+            </div>
+            <div class="form-group">
+                <label>Correo</label>
+                <input type="email" id="inpCorreo" placeholder="correo@duocuc.cl">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" style="flex:1;" onclick="enviarInscripcion()">Confirmar inscripción</button>
+                <button class="btn" style="flex:1;" onclick="cerrarModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const CONFIG = {
+        // URL base del backend
+        API_URL: "http://54.237.92.231:8080",
+
+        // Datos de Azure AD B2C (los mismos de Postman)
+        TENANT_ID: "823b12b4-9c38-436c-b51a-1af729219b7f",
+        CLIENT_ID: "48a39aae-b7c4-4972-a77c-fefd35eba069",
+        CLIENT_SECRET: "jrs8Q~n~Dwwq27Ktg8LkYNpwKT~e436kIX-O~cUI",
+        SCOPE: "https://duocazure20.onmicrosoft.com/48a39aae-b7c4-4972-a77c-fefd35eba069/.default"
+    };
+
+    let TOKEN = null;
+    let ROL_ACTUAL = null;
+
+
+    //  LOGIN - Obtiene el token de Azure AD B2C
+    async function login() {
+        const rol = document.getElementById("rolSelect").value;
+        const msg = document.getElementById("loginMsg");
+        msg.classList.remove("show");
+
+        try {
+            const tokenUrl = `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`;
+            const body = new URLSearchParams({
+                grant_type: "client_credentials",
+                client_id: CONFIG.CLIENT_ID,
+                client_secret: CONFIG.CLIENT_SECRET,
+                scope: CONFIG.SCOPE
+            });
+
+            const resp = await fetch(tokenUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: body
+            });
+
+            if (!resp.ok) throw new Error("No se pudo autenticar con Azure AD B2C");
+
+            const data = await resp.json();
+            TOKEN = data.access_token;
+            ROL_ACTUAL = rol;
+
+            // Cambiar a la vista principal
+            document.getElementById("loginView").classList.add("hidden");
+            document.getElementById("mainView").classList.remove("hidden");
+            document.getElementById("userRole").textContent = "Rol: " + rol;
+
+            cargarCursos();
+        } catch (e) {
+            msg.textContent = "Error al iniciar sesión: " + e.message;
+            msg.classList.add("show");
+        }
+    }
+
+    function logout() {
+        TOKEN = null;
+        ROL_ACTUAL = null;
+        document.getElementById("mainView").classList.add("hidden");
+        document.getElementById("loginView").classList.remove("hidden");
+    }
+
+    //  CARGAR CURSOS - GET /api/cursos
+    async function cargarCursos() {
+        const list = document.getElementById("cursosList");
+        const msg = document.getElementById("cursosMsg");
+        msg.classList.remove("show");
+        list.innerHTML = '<div class="loader">Cargando cursos...</div>';
+
+        try {
+            const resp = await fetch(`${CONFIG.API_URL}/api/cursos`, {
+                headers: { "Authorization": "Bearer " + TOKEN }
+            });
+
+            if (!resp.ok) throw new Error("Error al cargar cursos (código " + resp.status + ")");
+
+            const cursos = await resp.json();
+
+            if (cursos.length === 0) {
+                list.innerHTML = '<div class="loader">No hay cursos disponibles.</div>';
+                return;
+            }
+
+            list.innerHTML = "";
+            cursos.forEach(curso => {
+                const valorFmt = curso.valor ? "$" + Number(curso.valor).toLocaleString("es-CL") : "Gratuito";
+                const item = document.createElement("div");
+                item.className = "curso-item";
+                item.innerHTML = `
+                    <div class="curso-info">
+                        <h3>${curso.nombre}</h3>
+                        <p>${curso.descripcion || "Sin descripción"}</p>
+                        <div class="curso-meta">
+                            <span class="badge"> ${curso.instructor || "N/D"}</span>
+                            <span class="badge"> ${curso.cupos || 0} cupos</span>
+                            <span class="badge"> ${valorFmt}</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="abrirModal(${curso.id}, '${curso.nombre.replace(/'/g, "")}')">
+                        Inscribirse
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        } catch (e) {
+            msg.className = "msg msg-error show";
+            msg.textContent = e.message;
+            list.innerHTML = "";
+        }
+    }
+
+    //  INSCRIPCIÓN - POST /api/inscripciones (pasa por la cola)
+    function abrirModal(idCurso, nombreCurso) {
+        document.getElementById("modalIdCurso").value = idCurso;
+        document.getElementById("modalNombreCurso").value = nombreCurso;
+        document.getElementById("modalMsg").classList.remove("show");
+        document.getElementById("inpRut").value = "";
+        document.getElementById("inpNombre").value = "";
+        document.getElementById("inpCorreo").value = "";
+        document.getElementById("modalInscripcion").classList.add("show");
+    }
+
+    function cerrarModal() {
+        document.getElementById("modalInscripcion").classList.remove("show");
+    }
+
+    async function enviarInscripcion() {
+        const msg = document.getElementById("modalMsg");
+        msg.classList.remove("show");
+
+        const inscripcion = {
+            rutEstudiante: document.getElementById("inpRut").value,
+            nombreEstudiante: document.getElementById("inpNombre").value,
+            correoEstudiante: document.getElementById("inpCorreo").value,
+            idCurso: parseInt(document.getElementById("modalIdCurso").value),
+            nombreCurso: document.getElementById("modalNombreCurso").value
+        };
+
+        if (!inscripcion.rutEstudiante || !inscripcion.nombreEstudiante) {
+            msg.className = "msg msg-error show";
+            msg.textContent = "El RUT y el nombre son obligatorios.";
+            return;
+        }
+
+        try {
+            const resp = await fetch(`${CONFIG.API_URL}/api/inscripciones`, {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + TOKEN,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(inscripcion)
+            });
+
+            if (resp.status === 202) {
+                msg.className = "msg msg-success show";
+                msg.textContent = "Inscripción enviada. El mensaje fue encolado y será procesado.";
+                setTimeout(cerrarModal, 2500);
+            } else {
+                throw new Error("Respuesta inesperada (código " + resp.status + ")");
+            }
+        } catch (e) {
+            msg.className = "msg msg-error show";
+            msg.textContent = "Error al inscribirse: " + e.message;
+        }
+    }
+</script>
+</body>
+</html>
